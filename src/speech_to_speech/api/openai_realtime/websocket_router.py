@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -9,6 +10,7 @@ from typing import Any, Callable, TypeVar
 
 import numpy as np
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from openai.types.realtime import (
     ConversationItemCreateEvent,
     ConversationItemDeleteEvent,
@@ -699,11 +701,30 @@ def create_app(
             # can be skipped/cancelled by Starlette's runner and never resume.
             _release_session(unit, session_id)
 
-    @app.get("/v1/realtime/capabilities")
-    async def capabilities_endpoint() -> dict[str, Any]:
-        return {
-            "pipelines": [{"index": unit.index, **unit.service.get_language_capabilities()} for unit in pool],
+    # A page served from another origin (the demo voice UI on its own port) may read the capabilities only when its
+    # origin is named here: comma-separated, none by default.
+    capability_origins = frozenset(
+        origin.strip() for origin in os.environ.get("S2S_CAPABILITIES_ALLOWED_ORIGINS", "").split(",") if origin.strip()
+    )
+
+    def describe_pipeline(unit: PipelineUnit) -> dict[str, Any]:
+        described = {"index": unit.index, **unit.service.get_language_capabilities()}
+        voices = unit.service.tts_voice_capabilities or {}
+        described["tts"] = {
+            **described["tts"],
+            "voices": voices.get("voices"),
+            "default_voice": voices.get("default_voice"),
         }
+        return described
+
+    @app.get("/v1/realtime/capabilities")
+    async def capabilities_endpoint(request: Request) -> JSONResponse:
+        # The answer depends on the Origin header only when some origin is allowed.
+        headers = {"Vary": "Origin"} if capability_origins else {}
+        origin = request.headers.get("origin")
+        if origin and origin in capability_origins:
+            headers["Access-Control-Allow-Origin"] = origin
+        return JSONResponse({"pipelines": [describe_pipeline(unit) for unit in pool]}, headers=headers)
 
     @app.get("/v1/usage")
     async def usage_endpoint() -> dict[str, Any]:

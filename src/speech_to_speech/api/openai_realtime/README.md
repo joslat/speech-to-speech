@@ -137,7 +137,9 @@ The response lists each pipeline by its `/v1/pool` index:
     "tts": {
       "languages": [{"code": "en", "name": "english"}],
       "supports_language_selection": true,
-      "supports_auto": null
+      "supports_auto": null,
+      "voices": [{"id": "af_heart", "name": "Heart (female)", "group": "American English"}],
+      "default_voice": "af_heart"
     },
     "conversation": {
       "languages": [{"code": "en", "name": "english"}],
@@ -164,6 +166,17 @@ Each handler's `supports_auto` describes automatic language selection; `null`
 means unknown. `conversation.session_auto_supported` says whether validation
 accepts `"auto"`. That value can be true for a fixed-language model: `"auto"` uses
 the adapter's configured behavior and does not turn a fixed model into a detector.
+
+`tts.voices` lists the voices a client may choose for the session's
+`audio.output.voice`, as `{"id", "name", "group"}` objects; `tts.default_voice`
+is the voice the server speaks with. Kokoro lists its voices grouped by the
+language each was made for, and Qwen3-TTS CustomVoice models list their preset
+speakers. Both fields are `null` for engines that do not list voices. A TTS
+handler lists its voices through an optional `voice_capabilities()` method.
+
+The route sends no CORS headers by default. To let a page on another origin read
+it, for example the demo served on port 7860, name that origin in
+`S2S_CAPABILITIES_ALLOWED_ORIGINS` (comma-separated).
 
 After pipeline construction, handlers expose native metadata as an immutable
 `SpeechLanguageCapabilities` value through `language_capabilities`; custom handlers

@@ -280,7 +280,7 @@ case-insensitively against the user's organisations from HF OAuth.
 | Transport | WebSocket (default) or WebRTC; selectable only with an env-pinned URL |
 | Microphone | Input device for capture. Applies on the next conversation / Restart. |
 | Speakers | Output device for assistant audio. Chrome/Edge can switch live via `AudioContext.setSinkId`; other browsers keep the system default. |
-| Voice | Qwen3-TTS speaker name (Aiden, Ryan, Dylan, Eric, Ono_Anna, Serena, Sohee, Uncle_Fu, Vivian) |
+| Voice | The voices of the server's speech engine when `/v1/realtime/capabilities` lists them (Kokoro, Qwen3-TTS CustomVoice). A stored voice the engine lacks is replaced by the server's own voice. Otherwise the Qwen3-TTS speaker names (Aiden, Ryan, Dylan, Eric, Ono_Anna, Serena, Sohee, Uncle_Fu, Vivian) |
 | Show reasoning | Show or hide the reasoning and summary sections in Conversation. Off by default; when enabled, each section starts collapsed. Applies immediately to existing and future replies and is saved in this browser. This changes display only; the reasoning effort is selected separately. |
 | Reasoning (button below the orb) | Server default, Off, Minimal, Low, Medium, High, or Extra high. Saved in this browser and applied to the next response without reconnecting, over either transport. The line below the button waits for `session.updated` and shows a green “Server confirmed” only when the server echoes the selected level. Missing or different levels stay unconfirmed. This verifies the server's session setting; model support determines how it is used. Higher levels may increase response time. Server default clears the override and restores the backend's startup setting. |
 | Instructions | System prompt sent in `session.update` once the connection opens |
@@ -352,7 +352,7 @@ sent.
   resamples to 24 kHz (boxcar lowpass + decimation on the 48 -> 24 fast
   path, linear interpolation fallback for odd rates) and packs Int16 LE.
 - **Browser cache safety**: the entry module, realtime client, and both audio
-  worklet URLs share the `reasoning-language-20261110` cache key. The client also waits for
+  worklet URLs share the `voices-20261120` cache key. The client also waits for
   the capture worklet to report the same version and a 24 kHz output rate
   before opening a session. When the browser-audio contract or sample rate
   changes, bump the key in `index.html`, `main.js`, and
@@ -390,3 +390,5 @@ sent.
 Choose **Language** on the conversation screen or in Settings to set transcription and response language. The choice persists across reloads and can change during a conversation; **Auto** restores automatic language selection. Language support depends on the configured speech backends.
 
 The demo checks backend language capabilities before connecting. When Auto is unsupported or discovery is unavailable, it preserves the backend default and disables switching back to Auto during that conversation. End the conversation to select backend defaults for the next one. Language changes while queued apply when the conversation starts.
+
+The same check reads the voices of the server's speech engine. The browser reads `/v1/realtime/capabilities` from the backend directly, so when the page and the backend are on different origins, start the backend with `S2S_CAPABILITIES_ALLOWED_ORIGINS` naming the page's origin (for example `http://localhost:7860`); otherwise the check is blocked and the page keeps its defaults.
